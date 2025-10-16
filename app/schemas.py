@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr
-from typing import Optional
+from typing import List, Optional
 from datetime import datetime
 
 class UserBase(BaseModel):
@@ -23,3 +23,20 @@ class Token(BaseModel):
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
+
+
+class ActivityBase(BaseModel):
+    description: str
+    category: Optional[str] = None
+    carbon_emission: float
+
+class ActivityCreate(ActivityBase):
+    pass
+
+class ActivityResponse(ActivityBase):
+    id: int
+    created_at: datetime
+
+    class Config:
+        orm_mode = True
+
