@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: ecopulse-backend
+    env: python
+    buildCommand: "pip install -r requirements-clean.txt"
+    startCommand: "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.9.0
+      - key: DATABASE_URL
+        fromDatabase:
+          name: ecopulse-db
+          property: connectionString
+    plan: free
+
+databases:
+  - name: ecopulse-db
+    databaseName: ecopulse
+    user: ecopulse_user
+    plan: free
