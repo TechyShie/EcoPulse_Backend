@@ -13,8 +13,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(auth.router)
-app.include_router(activities.router)
+# Include routers with /api prefix
+api_router = APIRouter(prefix="/api")
+api_router.include_router(auth.router)
+api_router.include_router(activities.router)
+app.include_router(api_router)
 
 @app.get("/")
 def root():
