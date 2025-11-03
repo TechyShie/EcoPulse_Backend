@@ -54,16 +54,11 @@ class ActivityBase(BaseModel):
 
 class ActivityCreate(ActivityBase):
     carbon_output: float
-    # Optional structured inputs to compute emissions when provided
-    distance: float | None = None
-    quantity: float | None = None
-    mode: str | None = None
 
 
 class ActivityResponse(ActivityBase):
     id: int
     carbon_output: float
-    eco_points: float | None = None
     created_at: datetime
 
     model_config = {"from_attributes": True}
