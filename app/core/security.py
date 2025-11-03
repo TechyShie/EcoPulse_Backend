@@ -1,5 +1,13 @@
+try:
+    from jose import JWTError, jwt
+except ImportError as e:
+    raise ImportError(
+        "Missing dependency 'python-jose'. Install it with:\n"
+        "    pip install 'python-jose[cryptography]'\n"
+        "or add it to your requirements and redeploy."
+    ) from e
+
 from datetime import datetime, timedelta, UTC
-from jose import JWTError, jwt
 from passlib.context import CryptContext
 from typing import Optional
 from fastapi import Depends, HTTPException, status
