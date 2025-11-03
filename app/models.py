@@ -1,31 +1,36 @@
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime
+from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Boolean
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.database import Base
-
 
 class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
-    full_name = Column(String(100), nullable=False)
-    email = Column(String(100), unique=True, index=True, nullable=False)
-    password_hash = Column(String(255), nullable=False)
-    eco_score = Column(Float, default=0.0)
+    username = Column(String, unique=True, index=True, nullable=False)
+    full_name = Column(String, nullable=True)
+    email = Column(String, unique=True, index=True, nullable=False)
+    password = Column(String, nullable=False)
+    role = Column(String, default="user")
+    bio = Column(String, nullable=True)
+    avatar = Column(String, nullable=True)
+    refresh_token = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    # Relationship
-    activities = relationship("Activity", back_populates="owner")
+    activities = relationship("Activity", back_populates="user")
 
 
 class Activity(Base):
     __tablename__ = "activities"
 
     id = Column(Integer, primary_key=True, index=True)
-    description = Column(String(255), nullable=False)
-    category = Column(String(50))
-    carbon_emission = Column(Float, default=0.0)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    name = Column(String, index=True)  # e.g. "Tree planting"
+    category = Column(String, index=True)  # e.g. "transport", "food"
+    description = Column(String, nullable=True)
+    carbon_output = Column(Float, nullable=False)
+    eco_points = Column(Float, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+    is_archived = Column(Boolean, default=False)
 
-    user_id = Column(Integer, ForeignKey("users.id"))
-    owner = relationship("User", back_populates="activities")
+    user = relationship("User", back_populates="activities")

@@ -1,6 +1,6 @@
-from app.database import engine, Base
-from app import models
+from app.database import Base, engine
+import app.models as models
 
-print("🛠️  Creating database tables...")
+print("Creating tables...")
 Base.metadata.create_all(bind=engine)
-print("✅ Tables created successfully!")
+print("Done. Tables created in SQLite DB.")

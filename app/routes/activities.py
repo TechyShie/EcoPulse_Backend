@@ -3,52 +3,86 @@ from sqlalchemy.orm import Session
 from typing import List
 from app import models, schemas
 from app.database import get_db
-from app.core.dependencies import get_current_user
+from app.core.security import get_current_user
+from app.services.ai_service import ai_service
+from app.utils.emissions_calculator import EmissionsCalculator
 
-router = APIRouter(prefix="/activities", tags=["Activities"])
+router = APIRouter(prefix="/api/activities", tags=["Activities"])
 
-@router.post("/", response_model=schemas.ActivityResponse)
-def create_activity(activity: schemas.ActivityCreate, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    new_activity = models.Activity(
-        description=activity.description,
+
+# -------------------------
+# Create new activity
+# -------------------------
+@router.post("/", response_model=schemas.ActivityResponse, status_code=status.HTTP_201_CREATED)
+def create_activity(
+    activity: schemas.ActivityCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    # Align behavior with Logs: optionally compute emissions and always compute eco_points
+    carbon_output = activity.carbon_output
+    try:
+        structured = {
+            "category": activity.category,
+            "activity": activity.name or (activity.description or ""),
+            "distance": activity.distance,
+            "quantity": activity.quantity,
+            "mode": activity.mode,
+        }
+        if any([structured.get("distance"), structured.get("quantity"), structured.get("mode")]):
+            carbon_output = EmissionsCalculator.calculate_emissions(structured)
+    except Exception:
+        carbon_output = activity.carbon_output
+
+    eco_points = ai_service.predict_eco_points(
+        activity=activity.name or (activity.description or ""),
         category=activity.category,
-        carbon_emission=activity.carbon_emission,
-        owner=current_user
+        carbon_emission=float(carbon_output),
+    )
+
+    new_activity = models.Activity(
+        name=activity.name,
+        category=activity.category,
+        description=activity.description,
+        carbon_output=carbon_output,
+        eco_points=eco_points,
+        user_id=current_user.id,
     )
     db.add(new_activity)
     db.commit()
     db.refresh(new_activity)
     return new_activity
 
+
+# -------------------------
+# Get all user activities
+# -------------------------
 @router.get("/", response_model=List[schemas.ActivityResponse])
-def get_activities(skip: int = 0, limit: int = 10, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    activities = db.query(models.Activity).filter(models.Activity.user_id == current_user.id).offset(skip).limit(limit).all()
+def get_user_activities(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    activities = db.query(models.Activity).filter(models.Activity.user_id == current_user.id).all()
     return activities
 
-@router.get("/{id}", response_model=schemas.ActivityResponse)
-def get_activity(id: int, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    activity = db.query(models.Activity).filter(models.Activity.id == id, models.Activity.user_id == current_user.id).first()
-    if not activity:
-        raise HTTPException(status_code=404, detail="Activity not found")
-    return activity
 
-@router.put("/{id}", response_model=schemas.ActivityResponse)
-def update_activity(id: int, updated: schemas.ActivityCreate, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    activity = db.query(models.Activity).filter(models.Activity.id == id, models.Activity.user_id == current_user.id).first()
-    if not activity:
-        raise HTTPException(status_code=404, detail="Activity not found")
-    activity.description = updated.description
-    activity.category = updated.category
-    activity.carbon_emission = updated.carbon_emission
-    db.commit()
-    db.refresh(activity)
-    return activity
+# -------------------------
+# Delete an activity
+# -------------------------
+@router.delete("/{activity_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_activity(
+    activity_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    activity = db.query(models.Activity).filter(
+        models.Activity.id == activity_id, models.Activity.user_id == current_user.id
+    ).first()
 
-@router.delete("/{id}")
-def delete_activity(id: int, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    activity = db.query(models.Activity).filter(models.Activity.id == id, models.Activity.user_id == current_user.id).first()
     if not activity:
         raise HTTPException(status_code=404, detail="Activity not found")
+
     db.delete(activity)
     db.commit()
-    return {"message": "Activity deleted successfully"}
+    # 204 No Content: return no body
+    return None
