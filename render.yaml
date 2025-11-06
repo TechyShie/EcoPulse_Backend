@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: ecopulse-backend
+    env: python
+    plan: free
+    buildCommand: |
+      cd ecopulse
+      pip install -r requirements.txt
+    startCommand: cd ecopulse && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        value: sqlite:///./ecopulse.db
+      - key: SECRET_KEY
+        generateValue: true
